@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="4f2326ac-5756-4cae-9440-0288aa3dd681" >
+		<http:listener-connection host="localhost" port="9099" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="4be01416-c235-4eef-a737-db2ccaf76c60" />
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="47bbfa55-b829-40de-9a1f-f5e807a504ad" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="<*your Email*>" password="<*Your Password*>" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="a73f3903-dc65-4a95-b00c-d62a4c77c653" >
+		<file:connection workingDir="<*Location*>" />
+	</file:config>
+	
+	<flow name="EmailWithAttachments" doc:id="04d57116-6946-4fbc-ac75-39d8c4310ac4" >
+		<http:listener doc:name="Listener" doc:id="d9965403-8406-42d5-a1cf-ea5280fbff96" config-ref="HTTP_Listener_config" path="/mail"/>
+		<file:read doc:name="Read" doc:id="9dd18b9e-bfec-43cb-a855-94fd2048aae4" config-ref="File_Config" path="github.png" outputMimeType="image/jpeg"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="9a8b1df3-90ea-43fc-b20e-e815541f1ca5" variableName="octectStream" mimeType="image/jpeg"/>
+		<file:read doc:name="Read" doc:id="9ae02b00-b4fe-41e6-88eb-b5a817fce303" config-ref="File_Config" path="samplePDF.pdf"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="90774ce3-7514-48f9-8651-353961325d45" variableName="varsamplePDF" />
+		<file:read doc:name="Read" doc:id="661fbcd8-6e34-41b0-a2f8-c3187245f467" config-ref="File_Config" path="sampleDOC.docx"/>
+		<email:send doc:name="Send" doc:id="ff66af47-7c6e-435b-99fe-20bde8d3e80d" config-ref="Email_SMTP" fromAddress="<*From Email Address*>" subject="Test mail">
+			<email:to-addresses >
+				<email:to-address value="<*To Email Address*>" />
+			</email:to-addresses>
+			<email:cc-addresses >
+				<email:cc-address value="<*CC Email Address*>" />
+			</email:cc-addresses>
+			<email:bcc-addresses >
+				<email:bcc-address value="<*BCC Email Address*>" />
+			</email:bcc-addresses>
+			<email:body contentTransferEncoding="Binary" contentType="text/plain">
+				<email:content ><![CDATA[hi,
+Stay Home and Stay Safe
+Regards,
+ABC
+***Sample Email Body***]]></email:content>
+			</email:body>
+			<email:attachments ><![CDATA[#[{
+	"GitHub" : vars.octectStream,
+	"samplePDF" : vars.varsamplePDF,
+	"sampleDoc" : payload
+}]]]></email:attachments>
+		</email:send>
+		<ee:transform doc:name="Transform Message" doc:id="550fad55-2276-4031-9ff1-6c870cc1ddc5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : "Mail Sent"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="82c746ae-6b3c-495e-8697-39e676507927" message="mail sent" category="samplemailLogs.log"/>
+	</flow>
+</mule>
